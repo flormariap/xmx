@@ -1,0 +1,229 @@
+name: "⚡ EnigMano FAST - Optimizado y Rápido"
+
+on:
+  workflow_dispatch:
+    inputs:
+      INSTANCE:
+        description: "Número de instancia"
+        required: true
+        default: "1"
+      AUTO_RELAY:
+        description: "Auto-relay infinito"
+        required: true
+        default: "true"
+        type: choice
+        options:
+          - "true"
+          - "false"
+
+jobs:
+  fast-setup:
+    name: "⚡ PC Virtual #${{ github.event.inputs.INSTANCE }}"
+    runs-on: windows-11-arm
+    timeout-minutes: 360
+    
+    env:
+      INSTANCE_ID: ${{ github.event.inputs.INSTANCE }}
+      AUTO_RELAY: ${{ github.event.inputs.AUTO_RELAY }}
+      SECRET_SHAHZAIB: ${{ secrets.SECRET_SHAHZAIB }}
+      NGROK_SHAHZAIB: ${{ secrets.NGROK_SHAHZAIB }}
+      GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
+      GITLAB_REPO: ${{ secrets.GITLAB_REPO }}
+    
+    steps:
+      - name: ⚡ Inicio Rápido
+        shell: pwsh
+        run: |
+          Write-Host "⚡ EnigMano FAST - Instancia #$env:INSTANCE_ID" -ForegroundColor Cyan
+          Write-Host "🚀 Optimizado para máxima velocidad" -ForegroundColor Green
+      
+      - name: 🔐 Validar Secrets
+        shell: pwsh
+        run: |
+          if (-not $env:SECRET_SHAHZAIB -or -not $env:NGROK_SHAHZAIB) {
+            Write-Host "❌ Faltan secrets: SECRET_SHAHZAIB o NGROK_SHAHZAIB" -ForegroundColor Red
+            exit 1
+          }
+          Write-Host "✅ Secrets OK" -ForegroundColor Green
+      
+      - name: 📥 Descargar Scripts desde GitLab
+        shell: pwsh
+        run: |
+          Write-Host "📥 Descargando scripts desde GitLab..." -ForegroundColor Cyan
+          
+          if ($env:GITLAB_TOKEN -and $env:GITLAB_REPO) {
+            # Clonar repo privado de GitLab
+            $gitlabUrl = "https://oauth2:$env:GITLAB_TOKEN@$env:GITLAB_REPO"
+            git clone $gitlabUrl gitlab-scripts
+            
+            # Copiar scripts necesarios
+            Copy-Item "gitlab-scripts/*.ps1" . -Force -ErrorAction SilentlyContinue
+            Copy-Item "gitlab-scripts/*.py" . -Force -ErrorAction SilentlyContinue
+            
+            Write-Host "✅ Scripts descargados de GitLab" -ForegroundColor Green
+          }
+          else {
+            Write-Host "⚠️ Sin GitLab configurado, usando scripts locales" -ForegroundColor Yellow
+          }
+      
+      - name: ⚡ Configuración Rápida del Sistema
+        shell: pwsh
+        run: |
+          Write-Host "⚡ Configuración rápida..." -ForegroundColor Cyan
+          
+          # Solo lo esencial
+          Set-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name "AppsUseLightTheme" -Value 0 -Force -ErrorAction SilentlyContinue
+          Set-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name "SystemUsesLightTheme" -Value 0 -Force -ErrorAction SilentlyContinue
+          
+          Write-Host "✅ Sistema configurado" -ForegroundColor Green
+      
+      - name: 🔥 RDP + Ngrok (Ultra Rápido)
+        shell: pwsh
+        run: |
+          Write-Host "🔥 Configurando RDP..." -ForegroundColor Cyan
+          
+          # Habilitar RDP
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0 -Force
+          Enable-NetFirewallRule -DisplayGroup "Remote Desktop" -ErrorAction SilentlyContinue
+          
+          # Usuario
+          net user runneradmin $env:SECRET_SHAHZAIB /add 2>$null
+          net user runneradmin $env:SECRET_SHAHZAIB 2>$null
+          net localgroup administrators runneradmin /add 2>$null
+          
+          # Ngrok (solo ARM64, más rápido)
+          Invoke-WebRequest -Uri "https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-arm64.zip" -OutFile "$env:TEMP\ngrok.zip" -UseBasicParsing
+          Expand-Archive -Path "$env:TEMP\ngrok.zip" -DestinationPath "$env:TEMP\ngrok" -Force
+          & "$env:TEMP\ngrok\ngrok.exe" config add-authtoken $env:NGROK_SHAHZAIB
+          Start-Process -FilePath "$env:TEMP\ngrok\ngrok.exe" -ArgumentList "tcp 3389" -WindowStyle Hidden
+          
+          Start-Sleep -Seconds 8
+          
+          # URL
+          try {
+            $ngrokApi = Invoke-RestMethod -Uri "http://localhost:4040/api/tunnels"
+            $rdpUrl = $ngrokApi.tunnels[0].public_url -replace "tcp://", ""
+            
+            Write-Host "`n╔════════════════════════════════════════════════════════════╗" -ForegroundColor Green
+            Write-Host "║              ⚡ PC VIRTUAL LISTO ⚡                        ║" -ForegroundColor Green
+            Write-Host "╚════════════════════════════════════════════════════════════╝" -ForegroundColor Green
+            Write-Host "`n📱 URL RDP: $rdpUrl" -ForegroundColor Yellow
+            Write-Host "👤 Usuario: runneradmin" -ForegroundColor White
+            Write-Host "🔒 Contraseña: (tu SECRET_SHAHZAIB)" -ForegroundColor White
+            Write-Host "════════════════════════════════════════════════════════════`n" -ForegroundColor Green
+          } catch {
+            Write-Host "⚠️ Ngrok iniciando..." -ForegroundColor Yellow
+          }
+      
+      - name: 💾 Backup Ligero
+        shell: pwsh
+        run: |
+          Write-Host "💾 Backup ligero..." -ForegroundColor Cyan
+          
+          $backupRoot = "$env:USERPROFILE\Backup"
+          New-Item -Path $backupRoot -ItemType Directory -Force | Out-Null
+          
+          # Crear script de backup directamente
+          $scriptContent = 'while ($true) { Copy-Item "$env:USERPROFILE\Desktop\*" -Destination "$env:USERPROFILE\Backup\" -Recurse -Force -ErrorAction SilentlyContinue; Start-Sleep -Seconds 600 }'
+          $scriptContent | Out-File "$env:TEMP\backup.ps1" -Force
+          
+          # Iniciar en background
+          Start-Job -ScriptBlock { 
+            param($script)
+            & powershell -ExecutionPolicy Bypass -Command $script
+          } -ArgumentList $scriptContent | Out-Null
+          
+          Write-Host "✅ Backup activo (cada 10 min)" -ForegroundColor Green
+      
+      - name: ⏱️ Mantener Vivo (Optimizado)
+        shell: pwsh
+        run: |
+          Write-Host "⏱️ PC Virtual activo..." -ForegroundColor Cyan
+          
+          $startTime = Get-Date
+          $targetMinutes = 355
+          
+          while ($true) {
+            $elapsed = (Get-Date) - $startTime
+            $elapsedMinutes = $elapsed.TotalMinutes
+            
+            # Mostrar cada 5 minutos
+            if ([math]::Floor($elapsedMinutes) % 5 -eq 0) {
+              $remaining = $targetMinutes - $elapsedMinutes
+              Write-Host "⏰ $([math]::Floor($elapsedMinutes)) min | ⏳ $([math]::Floor($remaining)) min restantes | ✅ ACTIVO" -ForegroundColor Green
+            }
+            
+            if ($elapsedMinutes -ge $targetMinutes) {
+              Write-Host "🔄 Preparando relay..." -ForegroundColor Yellow
+              break
+            }
+            
+            Start-Sleep -Seconds 60
+          }
+      
+      - name: 📤 Subir Backup
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backup-${{ github.event.inputs.INSTANCE }}
+          path: ${{ runner.temp }}\Backup\**
+          retention-days: 7
+        continue-on-error: true
+      
+      - name: 📤 Sincronizar con GitLab
+        if: always() && env.GITLAB_TOKEN != ''
+        shell: pwsh
+        run: |
+          Write-Host "📤 Sincronizando con GitLab..." -ForegroundColor Cyan
+          
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          
+          if ($env:GITLAB_REPO -and $env:GITLAB_TOKEN) {
+            $gitlabUrl = "https://oauth2:$env:GITLAB_TOKEN@$env:GITLAB_REPO"
+            
+            try {
+              git remote add gitlab $gitlabUrl 2>$null
+              git push gitlab --all --force 2>$null
+              Write-Host "✅ Sincronizado con GitLab" -ForegroundColor Green
+            } catch {
+              Write-Host "⚠️ Sync opcional omitido" -ForegroundColor Yellow
+            }
+          }
+      
+      - name: 🔄 Auto-Relay
+        if: always() && github.event.inputs.AUTO_RELAY == 'true'
+        shell: pwsh
+        run: |
+          $nextInstance = [int]$env:INSTANCE_ID + 1
+          
+          Write-Host "🔄 Ejecutando instancia #$nextInstance..." -ForegroundColor Cyan
+          
+          try {
+            gh workflow run enigmano-fast.yml -f INSTANCE=$nextInstance -f AUTO_RELAY=true
+            Write-Host "✅ Siguiente instancia iniciada" -ForegroundColor Green
+          } catch {
+            Write-Host "⚠️ Ejecuta manualmente si es necesario" -ForegroundColor Yellow
+          }
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: 📊 Resumen
+        if: always()
+        shell: pwsh
+        run: |
+          Write-Host "`n╔════════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
+          Write-Host "║              ⚡ RESUMEN RÁPIDO ⚡                          ║" -ForegroundColor Cyan
+          Write-Host "╚════════════════════════════════════════════════════════════╝" -ForegroundColor Cyan
+          
+          Write-Host "`n✅ COMPLETADO:" -ForegroundColor Green
+          Write-Host "   • RDP configurado" -ForegroundColor White
+          Write-Host "   • Ngrok activo" -ForegroundColor White
+          Write-Host "   • Backup automático" -ForegroundColor White
+          if ($env:GITLAB_TOKEN) {
+            Write-Host "   • GitLab sincronizado" -ForegroundColor White
+          }
+          
+          Write-Host "`n⚡ Optimizado para velocidad - Sin instalaciones innecesarias" -ForegroundColor Green
+          Write-Host "📱 Conéctate por RDP desde tu teléfono" -ForegroundColor Cyan
+          Write-Host "════════════════════════════════════════════════════════════`n" -ForegroundColor Cyan
