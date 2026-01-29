@@ -1,0 +1,79 @@
+name: "⚡ Karpux DevBox | Tailscale Edition"
+
+on:
+  workflow_dispatch:
+    inputs:
+      hostname:
+        description: "Nombre del equipo en Tailscale"
+        required: true
+        default: "karpux-box"
+
+jobs:
+  deploy-tailscale:
+    name: "🛡️ Desplegar Tailscale PC"
+    runs-on: windows-latest
+    timeout-minutes: 360
+    
+    defaults:
+      run:
+        shell: pwsh
+
+    steps:
+      # 1. Configurar Usuario y RDP
+      - name: 👤 Crear Usuario y Configurar RDP
+        run: |
+          $ErrorActionPreference = "Stop"
+          
+          Write-Host "1️⃣ Creando usuario 'runneradmin'..."
+          $pass = "KarpuxDev@33" | ConvertTo-SecureString -AsPlainText -Force
+          Set-LocalUser -Name "runneradmin" -Password $pass
+
+          Write-Host "2️⃣ Habilitando RDP..."
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
+          # Desactivar NLA para evitar problemas de certificados
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 0
+          
+          Start-Service TermService -ErrorAction SilentlyContinue
+
+      # 2. Instalar y Conectar Tailscale
+      - name: 📡 Conectar a Tailscale VPN
+        env:
+          TS_KEY: ${{ secrets.TAILSCALE_AUTHKEY }}
+          HOSTNAME: ${{ inputs.hostname }}
+        run: |
+          if (-not $env:TS_KEY) { throw "⚠️ FALTA EL SECRET: TAILSCALE_AUTHKEY" }
+
+          Write-Host "⬇️ Descargando Tailscale..."
+          Invoke-WebRequest -Uri "https://pkgs.tailscale.com/stable/tailscale-setup-latest.exe" -OutFile "ts.exe"
+          
+          Write-Host "💿 Instalando..."
+          Start-Process -FilePath "ts.exe" -ArgumentList "/quiet", "/norestart" -Wait
+
+          Write-Host "🔗 Conectando a tu red..."
+          $ts = "C:\Program Files\Tailscale\tailscale.exe"
+          & $ts up --authkey=$env:TS_KEY --hostname=$env:HOSTNAME --unattended --reset
+
+          # Obtener la IP de Tailscale (empieza por 100.x.x.x)
+          $ip = & $ts ip -4
+          "TS_IP=$ip" | Out-File -FilePath $env:GITHUB_ENV -Append
+          Write-Host "✅ CONECTADO. IP: $ip"
+
+      # 3. Datos de conexión
+      - name: 📱 DATOS PARA TU CELULAR
+        run: |
+          Write-Host " "
+          Write-Host "============================================="
+          Write-Host "   🛡️ CONEXIÓN SEGURA LISTA"
+          Write-Host "============================================="
+          Write-Host "📍 PC NAME (IP):     $env:TS_IP"
+          Write-Host "👤 USER ACCOUNT:     runneradmin"
+          Write-Host "🔑 PASSWORD:         KarpuxDev@33"
+          Write-Host "============================================="
+          Write-Host " "
+          Write-Host "⚠️ RECUERDA: Debes tener Tailscale ACTIVADO en tu celular."
+
+      # 4. Mantener vivo
+      - name: 🕒 Mantener Encendido
+        run: |
+          Write-Host "🟢 Sistema corriendo..."
+          while ($true) { Start-Sleep -Seconds 300 }
