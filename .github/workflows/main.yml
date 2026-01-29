@@ -1,0 +1,104 @@
+name: "⚡ Karpux DevBox | Ngrok Only Edition"
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy-ngrok:
+    name: "🚀 Desplegar PC Ngrok"
+    runs-on: windows-latest
+    timeout-minutes: 360
+    
+    defaults:
+      run:
+        shell: pwsh
+
+    steps:
+      # 1. Configuración de Usuario y RDP (Sin seguridad NLA para que conecte fácil)
+      - name: 👤 Crear Usuario y Configurar RDP
+        run: |
+          $ErrorActionPreference = "Stop"
+          
+          Write-Host "1️⃣ Creando usuario 'runneradmin'..."
+          $pass = "KarpuxDev@33" | ConvertTo-SecureString -AsPlainText -Force
+          Set-LocalUser -Name "runneradmin" -Password $pass
+
+          Write-Host "2️⃣ Configurando Regedit para RDP..."
+          # Habilitar RDP
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
+          # DESACTIVAR NLA (Esto arregla el error de conexión 0x104 en muchos casos)
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 0
+          
+          Write-Host "3️⃣ Iniciando servicio..."
+          Start-Service TermService -ErrorAction SilentlyContinue
+
+      # 2. APAGAR FIREWALL (Modo Nuclear)
+      - name: 🔥 Apagar Firewall (Para que entre Ngrok)
+        run: |
+          Write-Host "☢️ Apagando Firewall de Windows..."
+          Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled False
+          Write-Host "✅ Firewall Muerto. Paso libre para Ngrok."
+
+      # 3. Instalar y Correr Ngrok
+      - name: 🌍 Lanzar Túnel Ngrok
+        env:
+          NGROK_TOKEN: ${{ secrets.NGROK_AUTHTOKEN }}
+        run: |
+          if (-not $env:NGROK_TOKEN) { throw "⚠️ FALTA EL SECRET: NGROK_AUTHTOKEN" }
+
+          Write-Host "⬇️ Instalando Ngrok..."
+          choco install ngrok -y --no-progress --limit-output
+          
+          $ngrok = "C:\ProgramData\chocolatey\bin\ngrok.exe"
+          
+          # Autenticar
+          & $ngrok config add-authtoken $env:NGROK_TOKEN
+          
+          # Iniciar Túnel en puerto 3389 (Region US para mejor ping en Latam)
+          Write-Host "🚀 Iniciando túnel..."
+          Start-Process -FilePath $ngrok -ArgumentList @("tcp","3389","--region","us") -NoNewWindow
+          
+          # Esperar a que Ngrok genere el link
+          Write-Host "⏳ Esperando URL pública..."
+          Start-Sleep -Seconds 5
+          
+          $url = $null
+          for ($i=0; $i -lt 20; $i++) {
+            try {
+              $t = Invoke-RestMethod "http://127.0.0.1:4040/api/tunnels"
+              if ($t.tunnels.Count -gt 0) { 
+                $url = $t.tunnels[0].public_url
+                break 
+              }
+            } catch {}
+            Start-Sleep -Seconds 2
+          }
+
+          if (-not $url) { throw "❌ Ngrok no arrancó. Revisa tu token." }
+
+          # LIMPIAR URL (Quitar tcp://)
+          $cleanUrl = $url.Replace("tcp://", "")
+          
+          # Guardar en variables de entorno
+          "FINAL_URL=$cleanUrl" | Out-File -FilePath $env:GITHUB_ENV -Append
+          Write-Host "✅ TÚNEL OBTENIDO: $cleanUrl"
+
+      # 4. MOSTRAR DATOS LIMPIOS
+      - name: 📱 DATOS PARA TU CELULAR
+        run: |
+          Write-Host " "
+          Write-Host "============================================="
+          Write-Host "   ⚡ KARPUX LABS | CONEXIÓN LISTA ⚡"
+          Write-Host "============================================="
+          Write-Host "📍 PC NAME (Host):   $env:FINAL_URL"
+          Write-Host "👤 USER ACCOUNT:     runneradmin"
+          Write-Host "🔑 PASSWORD:         KarpuxDev@33"
+          Write-Host "============================================="
+          Write-Host " "
+          Write-Host "⚠️ COPIA EL 'PC NAME' TAL CUAL, SIN tcp://"
+
+      # 5. Mantener vivo
+      - name: 🕒 Mantener Encendido
+        run: |
+          Write-Host "🟢 Sistema corriendo. No cierres esta pestaña."
+          while ($true) { Start-Sleep -Seconds 300 }
